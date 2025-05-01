@@ -70,8 +70,8 @@ void* messageListener(void *arg) {
 		close(fd);
 		
 		if (bytes == sizeof(incoming)) {
-			printf("\nIncoming message from %s: %s\nrsh>", incoming.source, incoming.msg);
-			fflush(stdout);
+            printf("Incoming message from %s: %s\n", incoming.source, incoming.msg);
+            fflush(stdout);
 		}
 	}
 	pthread_exit((void*)0);
@@ -145,18 +145,19 @@ int main(int argc, char **argv) {
 		// printf("sendmsg: you have to specify target user\n");
 		// if no message is specified, you should print the following
  		// printf("sendmsg: you have to enter a message\n");
-		char *target = strtok(NULL, " ");
-		if (!target) {
-			printf("sendmsg: you have to specify target user\n");
-			continue;
-		}
-		char *message = strtok(NULL, "\n");
-		if (!message || strlen(message) == 0) {
-			printf("sendmsg: you have to enter a message\n");
-			continue;
-		}
-		sendmsg(uName, target, message);
-		continue;
+		    char *target = strtok(NULL, " ");
+		    char *message = target ? strtok(NULL, "\n") : NULL;
+		    
+		    if (!target) {
+		        printf("sendmsg: you have to specify target user\n");
+		        continue;
+		    }
+		    if (!message || strlen(message) == 0) {
+		        printf("sendmsg: you have to enter a message\n");
+		        continue;
+		    }
+		    sendmsg(uName, target, message);
+		    continue;
 	}
 
 	if (strcmp(cmd,"exit")==0) break;
