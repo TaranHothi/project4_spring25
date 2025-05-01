@@ -8,7 +8,7 @@
 
 struct message {
     char source[50];
-    char target[50]; 
+    char target[50];
     char msg[200];
 };
 
@@ -21,30 +21,27 @@ void terminate(int sig) {
 int main() {
     signal(SIGPIPE, SIG_IGN);
     signal(SIGINT, terminate);
-    
-    //Create server FIFO if it doesn't exist
+
+    // Create server FIFO if missing
     mkfifo("serverFIFO", 0666);
-    
-    //Open FIFOs with non-blocking flags
+
+    // Open FIFOs in non-blocking mode
     int server_fd = open("serverFIFO", O_RDONLY | O_NONBLOCK);
     int dummy_fd = open("serverFIFO", O_WRONLY | O_NONBLOCK);
 
-    while(1) {
+    while (1) {
         struct message req;
         ssize_t bytes = read(server_fd, &req, sizeof(req));
-        
-        //Only process full messages
-        if(bytes == sizeof(req)) {
-            //Forwards message to target user
+
+        if (bytes == sizeof(req)) {
+            // Forward message to target
             int target_fd = open(req.target, O_WRONLY | O_NONBLOCK);
-            if(target_fd != -1) {
+            if (target_fd != -1) {
                 write(target_fd, &req, sizeof(req));
                 close(target_fd);
             }
         }
-        
-        //Prevents CPU hogging
-        usleep(100000);
+        usleep(100000); // Prevent CPU hogging
     }
 
     close(server_fd);
