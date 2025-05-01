@@ -30,8 +30,8 @@ void sendmsg (char *user, char *target, char *msg) {
 	// TODO:
 	// Send a request to the server to send the message (msg) to the target user (target)
 	// by creating the message structure and writing it to server's FIFO
+/*Packs up a message and sends it over to the server*/
 struct message m;
-    /* pack the struct */
     strncpy(m.source, user, sizeof(m.source)-1);
     m.source[sizeof(m.source)-1] = '\0';
     strncpy(m.target, target, sizeof(m.target)-1);
@@ -61,7 +61,7 @@ void* messageListener(void *arg) {
 	// put an end of line at the end of the message
     char *user = (char*)arg;
     struct message m;
-    /* open our own FIFO to read incoming */
+    /*Opens our own FIFO to read incoming messages*/
     int fd = open(user, O_RDONLY);
     if (fd < 0) {
 	perror("open user FIFO");
@@ -71,7 +71,7 @@ void* messageListener(void *arg) {
 	ssize_t n = read(fd, &m, sizeof(m));
 	if (n > 0) {
 	    printf("\nIncoming message from %s: %s\n", m.source, m.msg);
-	    /* re-print prompt */
+	    /*Re-prints the prompt*/
 	    fprintf(stderr, "rsh>");
 	    fflush(stdout);
 	}
@@ -151,7 +151,7 @@ int main(int argc, char **argv) {
                 printf("sendmsg: you have to specify target user\n");
                 continue;
             }
-            /* find start of message in line2 */
+            /*Will find the start of the message in line2*/
             char *p = strchr(line2, ' ');
             if (p) p = strchr(p + 1, ' ');
             if (!p) {
