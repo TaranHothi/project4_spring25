@@ -5,6 +5,7 @@
 #include <string.h>
 #include <signal.h>
 #include <sys/stat.h>
+#include <errno.h>
 
 struct message {
     char source[50];
@@ -13,39 +14,60 @@ struct message {
 };
 
 void terminate(int sig) {
+    printf("Exiting....\n");
+    fflush(stdout);
     exit(0);
 }
 
 int main() {
+    int server_fd, dummy_fd;
+    struct message req;
+
     signal(SIGPIPE, SIG_IGN);
     signal(SIGINT, terminate);
 
-    // Create FIFOs if missing
-    mkfifo("serverFIFO", 0666);
-
-    // Open FIFOs with non-blocking flags
-    int server_fd = open("serverFIFO", O_RDONLY | O_NONBLOCK);
-    int dummy_fd = open("serverFIFO", O_WRONLY | O_NONBLOCK);
-
-    while (1) {
-        struct message req;
-        ssize_t bytes = read(server_fd, &req, sizeof(req));
-
-        if (bytes == sizeof(req)) {
-            printf("Received a request from %s to send the message %s to %s.\n", 
-                   req.source, req.msg, req.target);
-            fflush(stdout);
-
-            // Forward message to target
-            int target_fd = open(req.target, O_WRONLY | O_NONBLOCK);
-            if (target_fd != -1) {
-                write(target_fd, &req, sizeof(req));
-                close(target_fd);
-            }
-        }
-        usleep(100000); // Reduce CPU usage
+    // Ensure the server FIFO exists
+    if (mkfifo("serverFIFO", 0666) < 0 && errno != EEXIST) {
+        perror("mkfifo serverFIFO");
+        exit(1);
     }
 
+    // Open it for reading, and hold a dummy write‐end open so it never EOFs
+    server_fd = open("serverFIFO", O_RDONLY);
+    if (server_fd < 0) {
+        perror("open serverFIFO for read");
+        exit(1);
+    }
+    dummy_fd = open("serverFIFO", O_WRONLY);
+    if (dummy_fd < 0) {
+        perror("open serverFIFO dummy write");
+        exit(1);
+    }
+
+    while (1) {
+        ssize_t n = read(server_fd, &req, sizeof(req));
+        if (n <= 0) {
+            // either interrupted or no data; just loop
+            continue;
+        }
+
+        printf("Received a request from %s to send the message %s to %s.\n",
+               req.source, req.msg, req.target);
+        fflush(stdout);
+
+        // deliver it
+        int target_fd = open(req.target, O_WRONLY);
+        if (target_fd < 0) {
+            perror("server: open target FIFO");
+            continue;
+        }
+        if (write(target_fd, &req, sizeof(req)) < 0) {
+            perror("server: write to target FIFO");
+        }
+        close(target_fd);
+    }
+
+    // unreachable
     close(server_fd);
     close(dummy_fd);
     return 0;
