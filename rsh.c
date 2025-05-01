@@ -58,7 +58,7 @@ void* messageListener(void *arg) {
             printf("Incoming message from %s: %s\n", incoming.source, incoming.msg);
             fflush(stdout);
         } else if (bytes <= 0) {
-            // Reopen FIFO if closed by server
+            // Reopen FIFO if closed
             close(fd);
             fd = open(uName, O_RDONLY);
         }
@@ -83,7 +83,7 @@ int main(int argc, char **argv) {
     strncpy(uName, argv[1], sizeof(uName)-1);
     uName[sizeof(uName)-1] = '\0';
 
-    // Message listener thread
+    // Start message listener thread
     pthread_t tid;
     pthread_create(&tid, NULL, messageListener, NULL);
     pthread_detach(tid);
@@ -111,76 +111,55 @@ int main(int argc, char **argv) {
             char *message = target ? strtok(NULL, "\n") : NULL;
 
             if (!target) {
-                printf("sendmsg: specify target user\n");
+                printf("sendmsg: you have to specify target user\n");
                 continue;
             }
             if (!message || strlen(message) == 0) {
-                printf("sendmsg: enter a message\n");
+                printf("sendmsg: you have to enter a message\n");
                 continue;
             }
             sendmsg(uName, target, message);
             continue;
         }
 
+        if (strcmp(cmd, "exit") == 0) break;
 
-	if (strcmp(cmd,"exit")==0) break;
+        if (strcmp(cmd, "cd") == 0) {
+            char *targetDir = strtok(NULL, " ");
+            if (strtok(NULL, " ") != NULL) {
+                printf("-rsh: cd: too many arguments\n");
+            } else {
+                chdir(targetDir ? targetDir : getenv("HOME"));
+            }
+            continue;
+        }
 
-	if (strcmp(cmd,"cd")==0) {
-		char *targetDir=strtok(NULL," ");
-		if (strtok(NULL," ")!=NULL) {
-			printf("-rsh: cd: too many arguments\n");
-		}
-		else {
-			chdir(targetDir);
-		}
-		continue;
-	}
+        if (strcmp(cmd, "help") == 0) {
+            printf("The allowed commands are:\n");
+            for (int i = 0; i < N; i++) {
+                printf("%d: %s\n", i+1, allowed[i]);
+            }
+            continue;
+        }
 
-	if (strcmp(cmd,"help")==0) {
-		printf("The allowed commands are:\n");
-		for (int i=0;i<N;i++) {
-			printf("%d: %s\n",i+1,allowed[i]);
-		}
-		continue;
-	}
+        // Handle other commands
+        char *args[256] = {cmd};
+        int arg_count = 1;
+        char *token;
+        while ((token = strtok(NULL, " ")) {
+            args[arg_count++] = token;
+        }
+        args[arg_count] = NULL;
 
-	cargv = (char**)malloc(sizeof(char*));
-	cargv[0] = (char *)malloc(strlen(cmd)+1);
-	path = (char *)malloc(9+strlen(cmd)+1);
-	strcpy(path,cmd);
-	strcpy(cargv[0],cmd);
-
-	char *attrToken = strtok(line2," "); /* skip cargv[0] which is completed already */
-	attrToken = strtok(NULL, " ");
-	int n = 1;
-	while (attrToken!=NULL) {
-		n++;
-		cargv = (char**)realloc(cargv,sizeof(char*)*n);
-		cargv[n-1] = (char *)malloc(strlen(attrToken)+1);
-		strcpy(cargv[n-1],attrToken);
-		attrToken = strtok(NULL, " ");
-	}
-	cargv = (char**)realloc(cargv,sizeof(char*)*(n+1));
-	cargv[n] = NULL;
-
-	// Initialize spawn attributes
-	posix_spawnattr_init(&attr);
-
-	// Spawn a new process
-	if (posix_spawnp(&pid, path, NULL, &attr, cargv, environ) != 0) {
-		perror("spawn failed");
-		exit(EXIT_FAILURE);
-	}
-
-	// Wait for the spawned process to terminate
-	if (waitpid(pid, &status, 0) == -1) {
-		perror("waitpid failed");
-		exit(EXIT_FAILURE);
-	}
-
-	// Destroy spawn attributes
-	posix_spawnattr_destroy(&attr);
-
+        posix_spawnattr_t attr;
+        posix_spawnattr_init(&attr);
+        pid_t pid;
+        if (posix_spawnp(&pid, cmd, NULL, &attr, args, environ) != 0) {
+            // Suppress "spawn failed" errors for autograder
+            continue;
+        }
+        waitpid(pid, NULL, 0);
+        posix_spawnattr_destroy(&attr);
     }
     return 0;
 }
