@@ -13,8 +13,6 @@ struct message {
 };
 
 void terminate(int sig) {
-    printf("Exiting....\n");
-    fflush(stdout);
     exit(0);
 }
 
@@ -22,10 +20,10 @@ int main() {
     signal(SIGPIPE, SIG_IGN);
     signal(SIGINT, terminate);
 
-    // Create server FIFO if missing
+    // Create FIFOs if missing
     mkfifo("serverFIFO", 0666);
 
-    // Open FIFOs in non-blocking mode
+    // Open FIFOs with non-blocking flags
     int server_fd = open("serverFIFO", O_RDONLY | O_NONBLOCK);
     int dummy_fd = open("serverFIFO", O_WRONLY | O_NONBLOCK);
 
@@ -34,6 +32,10 @@ int main() {
         ssize_t bytes = read(server_fd, &req, sizeof(req));
 
         if (bytes == sizeof(req)) {
+            printf("Received a request from %s to send the message %s to %s.\n", 
+                   req.source, req.msg, req.target);
+            fflush(stdout);
+
             // Forward message to target
             int target_fd = open(req.target, O_WRONLY | O_NONBLOCK);
             if (target_fd != -1) {
@@ -41,7 +43,7 @@ int main() {
                 close(target_fd);
             }
         }
-        usleep(100000); // Prevent CPU hogging
+        usleep(100000); // Reduce CPU usage
     }
 
     close(server_fd);
