@@ -31,25 +31,26 @@ int main() {
 	while (1) {
 		// TODO:
 		// read requests from serverFIFO
-
-
-
-
-
-
+		ssize_t n = read(server, &req, sizeof(req));
+	        if (n != sizeof(req)) {
+	            continue;
+	        }
 		printf("Received a request from %s to send the message %s to %s.\n",req.source,req.msg,req.target);
 
 		// TODO:
 		// open target FIFO and write the whole message struct to the target FIFO
 		// close target FIFO after writing the message
-
-
-
-
-
-
-
-	}
+		int target_fd = open(req.target, O_WRONLY);
+	        if (target_fd < 0) {
+	            perror("open target FIFO");
+	            continue;
+	        }
+	        if (write(target_fd, &req, sizeof(req)) < 0) {
+	            perror("write to target FIFO");
+	        }
+	        close(target_fd);
+	    }
+		}
 	close(server);
 	close(dummyfd);
 	return 0;
